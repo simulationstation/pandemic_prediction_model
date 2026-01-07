@@ -298,7 +298,8 @@ def compute_ai_direct_capability(
 
 def compute_natural_hazard(
     natural_base_hazard: float,
-    permafrost_factor: float = 1.0
+    permafrost_factor: float = 1.0,
+    urbanization_factor: float = 1.0
 ) -> float:
     """
     Compute natural pandemic hazard rate.
@@ -306,11 +307,40 @@ def compute_natural_hazard(
     Args:
         natural_base_hazard: Baseline natural hazard rate
         permafrost_factor: Multiplier from climate/permafrost effects (>= 1)
+        urbanization_factor: Multiplier from urbanization/density effects (>= 1)
 
     Returns:
         Natural hazard rate for the year
     """
-    return natural_base_hazard * permafrost_factor
+    return natural_base_hazard * permafrost_factor * urbanization_factor
+
+
+def compute_urbanization_factor(
+    years_elapsed: int,
+    urbanization_rate: float,
+    density_natural_multiplier: float
+) -> float:
+    """
+    Compute urbanization effect on natural hazard.
+
+    Urbanization increases zoonotic spillover risk through:
+    - More human-animal interface (wet markets, deforestation)
+    - Higher density living conditions
+    - Megacity growth concentrating populations
+
+    Args:
+        years_elapsed: Years since model start
+        urbanization_rate: Annual increase in urban population fraction
+        density_natural_multiplier: How much density affects spillover risk
+
+    Returns:
+        Urbanization multiplier for natural hazard (>= 1)
+    """
+    # Urbanization compounds over time
+    urban_growth = (1 + urbanization_rate) ** years_elapsed
+
+    # Convert to hazard multiplier (scaled by density_natural_multiplier)
+    return 1 + (urban_growth - 1) * density_natural_multiplier
 
 
 def compute_accidental_hazard(
@@ -511,6 +541,40 @@ def apply_antibiotic_resistance(
     return adjusted
 
 
+def apply_density_transmission(
+    annual_probs: List[float],
+    urbanization_rate: float,
+    density_transmission_multiplier: float
+) -> List[float]:
+    """
+    Adjust probabilities for population density effects on transmission.
+
+    Higher density doesn't just increase spillover (handled in natural hazard),
+    it also increases transmission speed and severity once a pandemic starts.
+    Denser populations = faster spread = higher effective risk.
+
+    Args:
+        annual_probs: Annual probabilities
+        urbanization_rate: Annual growth in urbanization
+        density_transmission_multiplier: How density affects transmission severity
+
+    Returns:
+        Adjusted annual probabilities
+    """
+    adjusted = []
+    for i, prob in enumerate(annual_probs):
+        # Urbanization compounds over time
+        urban_growth = (1 + urbanization_rate) ** i
+
+        # Higher density = faster transmission = more severe pandemics
+        transmission_adjustment = 1 + (urban_growth - 1) * density_transmission_multiplier
+
+        adjusted_prob = clamp(prob * transmission_adjustment, 0.0, 1.0)
+        adjusted.append(adjusted_prob)
+
+    return adjusted
+
+
 # =============================================================================
 # MAIN MODEL FUNCTION
 # =============================================================================
@@ -553,6 +617,10 @@ def calculate_pandemic_probability(
     gof_risk_multiplier: float = 5.0,  # GoF is 5x riskier (aggressive)
     # Climate/Permafrost
     permafrost_thaw_rate: float = 0.01,  # 1% annual increase in natural baseline
+    # Urbanization/Density
+    urbanization_rate: float = 0.015,  # 1.5% annual increase in urban population fraction
+    density_natural_multiplier: float = 0.3,  # How much density increases natural spillover risk
+    density_transmission_multiplier: float = 0.2,  # How much density increases effective severity
     # Regulatory
     regulatory_drift: float = -0.01,  # Slight regulatory erosion over time (aggressive)
     # Antibiotic Resistance
@@ -660,12 +728,17 @@ def calculate_pandemic_probability(
         # Permafrost/climate factor (linear growth on natural baseline)
         permafrost_factor = 1 + permafrost_thaw_rate * years_elapsed
 
+        # Urbanization/density factor (compound growth on natural baseline)
+        urbanization_factor = compute_urbanization_factor(
+            years_elapsed, urbanization_rate, density_natural_multiplier
+        )
+
         # State actor hazard (grows linearly)
         state_hazard = state_actor_base_prob * (1 + state_actor_growth * years_elapsed)
 
         # --- Compute hazards by pathway ---
 
-        natural_hazard = compute_natural_hazard(natural_base_hazard, permafrost_factor)
+        natural_hazard = compute_natural_hazard(natural_base_hazard, permafrost_factor, urbanization_factor)
 
         accidental_hazard = compute_accidental_hazard(
             accidental_base_hazard,
@@ -712,6 +785,13 @@ def calculate_pandemic_probability(
         annual_probs,
         antibiotic_resistance_growth,
         antibiotic_severity_multiplier
+    )
+
+    # Apply density/urbanization transmission severity adjustment
+    annual_probs = apply_density_transmission(
+        annual_probs,
+        urbanization_rate,
+        density_transmission_multiplier
     )
 
     # === COMPUTE CUMULATIVE ===
@@ -842,9 +922,12 @@ def run_detailed_analysis(period_years: int = 10, **kwargs) -> Dict:
         mit_factor = max(0.5, 1 + net_mit_rate * years_elapsed)
         mal_factor = 1 + params['malicious_growth'] * years_elapsed
         perm_factor = 1 + params['permafrost_thaw_rate'] * years_elapsed
+        urban_factor = compute_urbanization_factor(
+            years_elapsed, params['urbanization_rate'], params['density_natural_multiplier']
+        )
         state_haz = params['state_actor_base_prob'] * (1 + params['state_actor_growth'] * years_elapsed)
 
-        nat_haz = compute_natural_hazard(natural_base, perm_factor)
+        nat_haz = compute_natural_hazard(natural_base, perm_factor, urban_factor)
         acc_haz = compute_accidental_hazard(
             accidental_base, lab_mult, cap_mult, mit_factor,
             params['gof_fraction'], params['gof_risk_multiplier'], cloud_factor, synthesis_factor
@@ -869,6 +952,8 @@ def run_detailed_analysis(period_years: int = 10, **kwargs) -> Dict:
             'ai_direct_factor': ai_direct,
             'mitigation_factor': mit_factor,
             'knowledge_factor': knowledge_factor,
+            'urbanization_factor': urban_factor,
+            'permafrost_factor': perm_factor,
         })
 
         current_pop *= (1 + params['pop_growth'])
@@ -952,6 +1037,12 @@ Examples:
                         help="Risk multiplier for GoF work")
     parser.add_argument("--permafrost_thaw_rate", type=float, default=0.01,
                         help="Annual increase in natural hazard from climate")
+    parser.add_argument("--urbanization_rate", type=float, default=0.015,
+                        help="Annual increase in urban population fraction")
+    parser.add_argument("--density_natural_multiplier", type=float, default=0.3,
+                        help="How much density increases natural spillover risk")
+    parser.add_argument("--density_transmission_multiplier", type=float, default=0.2,
+                        help="How much density increases transmission severity")
     parser.add_argument("--regulatory_drift", type=float, default=-0.01,
                         help="Annual change in regulatory effectiveness (negative = erosion)")
     parser.add_argument("--antibiotic_resistance_growth", type=float, default=0.03,
@@ -1028,15 +1119,17 @@ Examples:
                   f"{y['malicious_hazard']:>10.7f} {y['state_actor_hazard']:>9.5f} "
                   f"{y['total_hazard']:>9.5f} {y['annual_prob_adjusted']*100:>7.2f}%")
 
-        print("\nKey multipliers (Year 10):")
-        y10 = results['years'][-1]
-        print(f"  Lab multiplier:        {y10['lab_multiplier']:.2f}x")
-        print(f"  Cloud lab factor:      {y10['cloud_lab_factor']:.2f}x")
-        print(f"  Synthesis factor:      {y10['synthesis_factor']:.2f}x")
-        print(f"  Capability multiplier: {y10['capability_multiplier']:.2f}x")
-        print(f"  AI direct factor:      {y10['ai_direct_factor']:.2f}")
-        print(f"  Mitigation factor:     {y10['mitigation_factor']:.2f}x")
-        print(f"  Knowledge factor:      {y10['knowledge_factor']:.2f}x")
+        print(f"\nKey multipliers (Year {args.period_years}):")
+        y_last = results['years'][-1]
+        print(f"  Lab multiplier:        {y_last['lab_multiplier']:.2f}x")
+        print(f"  Cloud lab factor:      {y_last['cloud_lab_factor']:.2f}x")
+        print(f"  Synthesis factor:      {y_last['synthesis_factor']:.2f}x")
+        print(f"  Capability multiplier: {y_last['capability_multiplier']:.2f}x")
+        print(f"  AI direct factor:      {y_last['ai_direct_factor']:.2f}")
+        print(f"  Mitigation factor:     {y_last['mitigation_factor']:.2f}x")
+        print(f"  Knowledge factor:      {y_last['knowledge_factor']:.2f}x")
+        print(f"  Urbanization factor:   {y_last['urbanization_factor']:.2f}x")
+        print(f"  Permafrost factor:     {y_last['permafrost_factor']:.2f}x")
 
     else:
         cum_prob, annual_probs = calculate_pandemic_probability(**model_params)

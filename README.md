@@ -8,14 +8,14 @@ A comprehensive simulation framework for pandemic risk assessment, including bot
 
 **DISCLAIMER: This is a simulation model for research and educational purposes only. It is NOT a validated forecast and should NOT be used for policy decisions. Parameter defaults are illustrative and have not been empirically validated. The model is intentionally calibrated for pessimistic/aggressive scenarios to support "prepare for the worst" risk planning.**
 
-### Simulation Results (v2.0 - Aggressive Scenario)
+### Simulation Results (v2.1 - Aggressive Scenario with Urbanization)
 
 | Time Horizon | Cumulative Probability | Annual Prob (Final Year) |
 |--------------|------------------------|--------------------------|
-| 5-year       | **~24%**               | 7.38%                    |
-| 10-year      | **~59%**               | 14.82%                   |
-| 15-year      | **~88%**               | 27.51%                   |
-| 20-year      | **~99%**               | 49.13%                   |
+| 5-year       | **~24%**               | 7.50%                    |
+| 10-year      | **~60%**               | 15.30%                   |
+| 15-year      | **~89%**               | 28.86%                   |
+| 20-year      | **~99%**               | 52.42%                   |
 
 ### Model Architecture
 
@@ -32,7 +32,7 @@ This is standard survival analysis methodology that properly handles multiple in
 
 | Pathway | Components | Scales With |
 |---------|------------|-------------|
-| **Natural** | Zoonotic spillover, climate-enhanced emergence | Permafrost thaw rate |
+| **Natural** | Zoonotic spillover, climate-enhanced emergence, urbanization effects | Permafrost thaw rate × Urbanization factor |
 | **Accidental** | General lab accidents, GoF accidents, cloud lab incidents | Labs × Capability ÷ Mitigation |
 | **Malicious (Individual)** | Lone actors, small groups | Capability × Incentives × Synthesis access |
 | **Malicious (State)** | Nation-state bioweapons programs | State actor growth rate |
@@ -129,6 +129,14 @@ Where:
 |-----------|---------|-------------|
 | `permafrost_thaw_rate` | 0.01 (1%/yr) | Annual increase in natural hazard from climate effects |
 
+#### Urbanization & Density Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `urbanization_rate` | 0.015 (1.5%/yr) | Annual compound growth in urban population fraction |
+| `density_natural_multiplier` | 0.30 (30%) | How much density increases zoonotic spillover risk |
+| `density_transmission_multiplier` | 0.20 (20%) | How much density increases pandemic severity (transmission speed) |
+
 #### Antibiotic Resistance Parameters
 
 | Parameter | Default | Description |
@@ -157,7 +165,7 @@ Where:
 
 | Growth Type | Parameters | Formula |
 |-------------|------------|---------|
-| **Compound** | pop, labs, AI adoption, synthesis costs, cloud labs, knowledge, antibiotic resistance | `value × (1 + rate)^t` |
+| **Compound** | pop, labs, AI adoption, synthesis costs, cloud labs, knowledge, antibiotic resistance, urbanization | `value × (1 + rate)^t` |
 | **Linear** | mitigation, regulatory drift, malicious incentives, permafrost, state actors | `1 + rate × t` |
 | **Sigmoid** | AI direct capability | `1 / (1 + exp(-k(t - t₀)))` |
 
@@ -197,34 +205,34 @@ python predictor/predictor.py --state_actor_base_prob 0.005 --gof_risk_multiplie
 
 #### Standard Output (10-year)
 ```
-Projected probability of a major pandemic over the next 10 years: 59.18%
+Projected probability of a major pandemic over the next 10 years: 60.00%
 
 Annual probabilities:
   Year 1: 3.53%
-  Year 2: 4.15%
-  Year 3: 4.97%
-  Year 4: 6.02%
-  Year 5: 7.38%
-  Year 6: 9.10%
-  Year 7: 10.27%
-  Year 8: 11.59%
-  Year 9: 13.10%
-  Year 10: 14.82%
+  Year 2: 4.17%
+  Year 3: 5.01%
+  Year 4: 6.09%
+  Year 5: 7.50%
+  Year 6: 9.27%
+  Year 7: 10.49%
+  Year 8: 11.89%
+  Year 9: 13.48%
+  Year 10: 15.30%
 ```
 
 #### Detailed Output (--detailed flag)
 ```
 Year   Natural  Accident  Malicious     State     Total     Prob
    1   0.01250   0.02046  0.0030001   0.00300   0.03596    3.53%
-   2   0.01263   0.02666  0.0030902   0.00309   0.04238    4.15%
-   3   0.01275   0.03482  0.0031802   0.00318   0.05075    4.97%
-   4   0.01288   0.04553  0.0032703   0.00327   0.06167    6.02%
-   5   0.01300   0.05959  0.0033604   0.00336   0.07595    7.38%
-   6   0.01313   0.07768  0.0034505   0.00345   0.09426    9.10%
-   7   0.01325   0.08986  0.0035406   0.00354   0.10665   10.27%
-   8   0.01338   0.10391  0.0036307   0.00363   0.12092   11.59%
-   9   0.01350   0.12017  0.0037208   0.00372   0.13739   13.10%
-  10   0.01363   0.13898  0.0038109   0.00381   0.15642   14.82%
+   2   0.01268   0.02666  0.0030902   0.00309   0.04244    4.17%
+   3   0.01287   0.03482  0.0031802   0.00318   0.05087    5.01%
+   4   0.01305   0.04553  0.0032703   0.00327   0.06185    6.09%
+   5   0.01324   0.05959  0.0033604   0.00336   0.07619    7.50%
+   6   0.01343   0.07768  0.0034505   0.00345   0.09456    9.27%
+   7   0.01362   0.08986  0.0035406   0.00354   0.10702   10.49%
+   8   0.01382   0.10391  0.0036307   0.00363   0.12136   11.89%
+   9   0.01401   0.12017  0.0037208   0.00372   0.13790   13.48%
+  10   0.01421   0.13898  0.0038109   0.00381   0.15701   15.30%
 
 Key multipliers (Year 10):
   Lab multiplier:        2.36x
@@ -234,6 +242,8 @@ Key multipliers (Year 10):
   AI direct factor:      0.29
   Mitigation factor:     1.09x
   Knowledge factor:      1.55x
+  Urbanization factor:   1.04x
+  Permafrost factor:     1.09x
 ```
 
 #### Monte Carlo Output (--monte_carlo flag)
@@ -265,6 +275,9 @@ Cumulative 10-year probability:
 | `state_actor_base_prob` | 0.3%/yr | Multiple states with suspected programs |
 | `gof_fraction` | 15% | GoF research expanding despite controversy |
 | `gof_risk_multiplier` | 5x | Intentionally enhanced pathogens are much riskier |
+| `urbanization_rate` | 1.5%/yr | Rapid megacity growth in developing world |
+| `density_natural_multiplier` | 30% | More human-animal interfaces, wet markets, habitat loss |
+| `density_transmission_multiplier` | 20% | Higher density = faster transmission = more severe outbreaks |
 
 #### Conservative Alternative Values
 
@@ -277,10 +290,12 @@ python predictor/predictor.py \
   --regulatory_drift 0.0 \
   --ai_direct_start_year 8 \
   --state_actor_base_prob 0.001 \
-  --gof_risk_multiplier 3.0
+  --gof_risk_multiplier 3.0 \
+  --urbanization_rate 0.01 \
+  --density_natural_multiplier 0.15
 ```
 
-This produces ~30-35% 10-year probability instead of ~59%.
+This produces ~30-35% 10-year probability instead of ~60%.
 
 ---
 
@@ -292,7 +307,8 @@ This produces ~30-35% 10-year probability instead of ~59%.
 4. **Simplified state actor model** - Treats state programs as single hazard rate
 5. **IQ-capability proxy** - Uses IQ distribution as simplified proxy for complex skill requirements
 6. **Climate uncertainty** - Permafrost/habitat effects are rough approximations
-7. **No feedback loops** - Doesn't model how a pandemic would affect subsequent risk (policy changes, infrastructure damage)
+7. **Urbanization simplification** - Uses global average rate; actual effects vary by region (megacity vs rural)
+8. **No feedback loops** - Doesn't model how a pandemic would affect subsequent risk (policy changes, infrastructure damage, de-urbanization)
 
 ---
 
