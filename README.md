@@ -8,14 +8,14 @@ A comprehensive simulation framework for pandemic risk assessment, including bot
 
 **DISCLAIMER: This is a simulation model for research and educational purposes only. It is NOT a validated forecast and should NOT be used for policy decisions. Parameter defaults are illustrative and have not been empirically validated. The model is intentionally calibrated for pessimistic/aggressive scenarios to support "prepare for the worst" risk planning.**
 
-### Simulation Results (v2.1 - Aggressive Scenario with Urbanization)
+### Simulation Results (v2.2 - Aggressive Scenario with Agricultural Intensification)
 
 | Time Horizon | Cumulative Probability | Annual Prob (Final Year) |
 |--------------|------------------------|--------------------------|
-| 5-year       | **~24%**               | 7.50%                    |
-| 10-year      | **~60%**               | 15.30%                   |
-| 15-year      | **~89%**               | 28.86%                   |
-| 20-year      | **~99%**               | 52.42%                   |
+| 5-year       | **~26%**               | 8.05%                    |
+| 10-year      | **~62%**               | 15.94%                   |
+| 15-year      | **~90%**               | 29.54%                   |
+| 20-year      | **~99%**               | 53.03%                   |
 
 ### Model Architecture
 
@@ -33,6 +33,7 @@ This is standard survival analysis methodology that properly handles multiple in
 | Pathway | Components | Scales With |
 |---------|------------|-------------|
 | **Natural** | Zoonotic spillover, climate-enhanced emergence, urbanization effects | Permafrost thaw rate × Urbanization factor |
+| **Agricultural** | Factory farming spillover (H5N1, H1N1, Nipah) | Industrial agriculture growth rate |
 | **Accidental** | General lab accidents, GoF accidents, cloud lab incidents | Labs × Capability ÷ Mitigation |
 | **Malicious (Individual)** | Lone actors, small groups | Capability × Incentives × Synthesis access |
 | **Malicious (State)** | Nation-state bioweapons programs | State actor growth rate |
@@ -129,6 +130,13 @@ Where:
 |-----------|---------|-------------|
 | `permafrost_thaw_rate` | 0.01 (1%/yr) | Annual increase in natural hazard from climate effects |
 
+#### Agricultural Intensification Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `ag_intensity_base_prob` | 0.005 (0.5%/yr) | Baseline annual probability from factory farming spillover |
+| `ag_intensity_growth` | 0.04 (4%/yr) | Annual compound growth rate of industrial agriculture |
+
 #### Urbanization & Density Parameters
 
 | Parameter | Default | Description |
@@ -165,7 +173,7 @@ Where:
 
 | Growth Type | Parameters | Formula |
 |-------------|------------|---------|
-| **Compound** | pop, labs, AI adoption, synthesis costs, cloud labs, knowledge, antibiotic resistance, urbanization | `value × (1 + rate)^t` |
+| **Compound** | pop, labs, AI adoption, synthesis costs, cloud labs, knowledge, antibiotic resistance, urbanization, agricultural intensity | `value × (1 + rate)^t` |
 | **Linear** | mitigation, regulatory drift, malicious incentives, permafrost, state actors | `1 + rate × t` |
 | **Sigmoid** | AI direct capability | `1 / (1 + exp(-k(t - t₀)))` |
 
@@ -205,34 +213,34 @@ python predictor/predictor.py --state_actor_base_prob 0.005 --gof_risk_multiplie
 
 #### Standard Output (10-year)
 ```
-Projected probability of a major pandemic over the next 10 years: 60.00%
+Projected probability of a major pandemic over the next 10 years: 62.39%
 
 Annual probabilities:
-  Year 1: 3.53%
-  Year 2: 4.17%
-  Year 3: 5.01%
-  Year 4: 6.09%
-  Year 5: 7.50%
-  Year 6: 9.27%
-  Year 7: 10.49%
-  Year 8: 11.89%
-  Year 9: 13.48%
-  Year 10: 15.30%
+  Year 1: 4.01%
+  Year 2: 4.67%
+  Year 3: 5.53%
+  Year 4: 6.63%
+  Year 5: 8.05%
+  Year 6: 9.84%
+  Year 7: 11.07%
+  Year 8: 12.49%
+  Year 9: 14.10%
+  Year 10: 15.94%
 ```
 
 #### Detailed Output (--detailed flag)
 ```
-Year   Natural  Accident  Malicious     State     Total     Prob
-   1   0.01250   0.02046  0.0030001   0.00300   0.03596    3.53%
-   2   0.01268   0.02666  0.0030902   0.00309   0.04244    4.17%
-   3   0.01287   0.03482  0.0031802   0.00318   0.05087    5.01%
-   4   0.01305   0.04553  0.0032703   0.00327   0.06185    6.09%
-   5   0.01324   0.05959  0.0033604   0.00336   0.07619    7.50%
-   6   0.01343   0.07768  0.0034505   0.00345   0.09456    9.27%
-   7   0.01362   0.08986  0.0035406   0.00354   0.10702   10.49%
-   8   0.01382   0.10391  0.0036307   0.00363   0.12136   11.89%
-   9   0.01401   0.12017  0.0037208   0.00372   0.13790   13.48%
-  10   0.01421   0.13898  0.0038109   0.00381   0.15701   15.30%
+Year   Natural  Accident  Malicious     State   AgriInt     Total     Prob
+   1   0.01250   0.02046  0.0030001   0.00300   0.00500   0.04096    4.01%
+   2   0.01268   0.02666  0.0030902   0.00309   0.00520   0.04764    4.67%
+   3   0.01287   0.03482  0.0031802   0.00318   0.00541   0.05627    5.53%
+   4   0.01305   0.04553  0.0032703   0.00327   0.00562   0.06747    6.63%
+   5   0.01324   0.05959  0.0033604   0.00336   0.00585   0.08204    8.05%
+   6   0.01343   0.07768  0.0034505   0.00345   0.00608   0.10065    9.84%
+   7   0.01362   0.08986  0.0035406   0.00354   0.00633   0.11334   11.07%
+   8   0.01382   0.10391  0.0036307   0.00363   0.00658   0.12794   12.49%
+   9   0.01401   0.12017  0.0037208   0.00372   0.00684   0.14475   14.10%
+  10   0.01421   0.13898  0.0038109   0.00381   0.00712   0.16412   15.94%
 
 Key multipliers (Year 10):
   Lab multiplier:        2.36x
@@ -278,6 +286,8 @@ Cumulative 10-year probability:
 | `urbanization_rate` | 1.5%/yr | Rapid megacity growth in developing world |
 | `density_natural_multiplier` | 30% | More human-animal interfaces, wet markets, habitat loss |
 | `density_transmission_multiplier` | 20% | Higher density = faster transmission = more severe outbreaks |
+| `ag_intensity_base_prob` | 0.5%/yr | H5N1 actively circulating; factory farming creates pandemic incubators |
+| `ag_intensity_growth` | 4%/yr | Industrial poultry/swine expanding rapidly in developing world |
 
 #### Conservative Alternative Values
 
@@ -292,23 +302,26 @@ python predictor/predictor.py \
   --state_actor_base_prob 0.001 \
   --gof_risk_multiplier 3.0 \
   --urbanization_rate 0.01 \
-  --density_natural_multiplier 0.15
+  --density_natural_multiplier 0.15 \
+  --ag_intensity_base_prob 0.002 \
+  --ag_intensity_growth 0.02
 ```
 
-This produces ~30-35% 10-year probability instead of ~60%.
+This produces ~35-40% 10-year probability instead of ~62%.
 
 ---
 
 ### Limitations & Caveats
 
 1. **Not a validated forecast** - Parameter defaults are judgmental estimates, not empirically calibrated
-2. **Pathway independence** - Assumes natural/accidental/malicious risks are independent (partially addressed by correlation parameters)
+2. **Pathway independence** - Assumes natural/accidental/malicious/agricultural risks are independent (partially addressed by correlation parameters)
 3. **No severity modeling** - Counts any major pandemic equally; doesn't distinguish CFR
 4. **Simplified state actor model** - Treats state programs as single hazard rate
 5. **IQ-capability proxy** - Uses IQ distribution as simplified proxy for complex skill requirements
 6. **Climate uncertainty** - Permafrost/habitat effects are rough approximations
 7. **Urbanization simplification** - Uses global average rate; actual effects vary by region (megacity vs rural)
-8. **No feedback loops** - Doesn't model how a pandemic would affect subsequent risk (policy changes, infrastructure damage, de-urbanization)
+8. **Agricultural simplification** - Treats all factory farming uniformly; poultry vs swine have different risk profiles
+9. **No feedback loops** - Doesn't model how a pandemic would affect subsequent risk (policy changes, infrastructure damage, de-urbanization)
 
 ---
 

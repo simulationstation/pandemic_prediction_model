@@ -13,6 +13,7 @@ MODEL ASSUMPTIONS AND LIMITATIONS
    NATURAL PATHWAYS:
    - Zoonotic spillover (baseline, historically constant)
    - Climate-enhanced (permafrost thaw, habitat destruction - grows over time)
+   - Agricultural intensification (factory farming - independent spillover source)
 
    ACCIDENTAL PATHWAYS:
    - General lab accidents (scales with labs, capability, inverse with mitigation)
@@ -84,6 +85,10 @@ Gain-of-Function:
 
 Climate/Permafrost:
 - permafrost_thaw_rate: Annual increase in natural hazard from climate effects
+
+Agricultural Intensification:
+- ag_intensity_base_prob: Baseline annual probability from factory farming spillover
+- ag_intensity_growth: Annual growth rate of industrial agriculture
 
 Regulatory:
 - regulatory_drift: Annual change in regulatory effectiveness (can be negative)
@@ -341,6 +346,39 @@ def compute_urbanization_factor(
 
     # Convert to hazard multiplier (scaled by density_natural_multiplier)
     return 1 + (urban_growth - 1) * density_natural_multiplier
+
+
+def compute_agricultural_hazard(
+    ag_intensity_base_prob: float,
+    ag_intensity_growth: float,
+    years_elapsed: int
+) -> float:
+    """
+    Compute agricultural intensification hazard rate.
+
+    Industrial/factory farming creates conditions for novel pathogen emergence:
+    - Concentrated Animal Feeding Operations (CAFOs) as influenza incubators
+    - H5N1, H1N1, Nipah virus - all linked to intensive agriculture
+    - Rapid growth in developing world where oversight is limited
+
+    This is modeled as an independent hazard pathway separate from wild
+    zoonotic spillover because:
+    - Different mechanism (domestic animals vs wildlife)
+    - Different growth dynamics (industrial expansion vs habitat loss)
+    - Different intervention points (agricultural policy vs conservation)
+
+    Args:
+        ag_intensity_base_prob: Baseline annual probability from agricultural spillover
+        ag_intensity_growth: Annual compound growth rate of industrial agriculture
+        years_elapsed: Years since model start
+
+    Returns:
+        Agricultural hazard rate for the year
+    """
+    # Industrial agriculture grows compound (more CAFOs, more concentrated)
+    intensity_multiplier = (1 + ag_intensity_growth) ** years_elapsed
+
+    return ag_intensity_base_prob * intensity_multiplier
 
 
 def compute_accidental_hazard(
@@ -617,6 +655,9 @@ def calculate_pandemic_probability(
     gof_risk_multiplier: float = 5.0,  # GoF is 5x riskier (aggressive)
     # Climate/Permafrost
     permafrost_thaw_rate: float = 0.01,  # 1% annual increase in natural baseline
+    # Agricultural Intensification
+    ag_intensity_base_prob: float = 0.005,  # 0.5% annual baseline from factory farming (H5N1, etc.)
+    ag_intensity_growth: float = 0.04,  # 4% annual growth of industrial agriculture
     # Urbanization/Density
     urbanization_rate: float = 0.015,  # 1.5% annual increase in urban population fraction
     density_natural_multiplier: float = 0.3,  # How much density increases natural spillover risk
@@ -736,6 +777,11 @@ def calculate_pandemic_probability(
         # State actor hazard (grows linearly)
         state_hazard = state_actor_base_prob * (1 + state_actor_growth * years_elapsed)
 
+        # Agricultural intensification hazard (compound growth - factory farming)
+        agricultural_hazard = compute_agricultural_hazard(
+            ag_intensity_base_prob, ag_intensity_growth, years_elapsed
+        )
+
         # --- Compute hazards by pathway ---
 
         natural_hazard = compute_natural_hazard(natural_base_hazard, permafrost_factor, urbanization_factor)
@@ -761,7 +807,7 @@ def calculate_pandemic_probability(
         )
 
         # --- Total hazard and probability ---
-        total_hazard = natural_hazard + accidental_hazard + malicious_hazard
+        total_hazard = natural_hazard + accidental_hazard + malicious_hazard + agricultural_hazard
         annual_prob = hazard_to_probability(total_hazard)
         annual_probs_raw.append(annual_prob)
 
@@ -926,6 +972,9 @@ def run_detailed_analysis(period_years: int = 10, **kwargs) -> Dict:
             years_elapsed, params['urbanization_rate'], params['density_natural_multiplier']
         )
         state_haz = params['state_actor_base_prob'] * (1 + params['state_actor_growth'] * years_elapsed)
+        ag_haz = compute_agricultural_hazard(
+            params['ag_intensity_base_prob'], params['ag_intensity_growth'], years_elapsed
+        )
 
         nat_haz = compute_natural_hazard(natural_base, perm_factor, urban_factor)
         acc_haz = compute_accidental_hazard(
@@ -942,8 +991,9 @@ def run_detailed_analysis(period_years: int = 10, **kwargs) -> Dict:
             'accidental_hazard': acc_haz,
             'malicious_hazard': mal_haz,
             'state_actor_hazard': state_haz,
-            'total_hazard': nat_haz + acc_haz + mal_haz,
-            'annual_prob_raw': hazard_to_probability(nat_haz + acc_haz + mal_haz),
+            'agricultural_hazard': ag_haz,
+            'total_hazard': nat_haz + acc_haz + mal_haz + ag_haz,
+            'annual_prob_raw': hazard_to_probability(nat_haz + acc_haz + mal_haz + ag_haz),
             'annual_prob_adjusted': annual_probs[t-1],
             'lab_multiplier': lab_mult,
             'cloud_lab_factor': cloud_factor,
@@ -1037,6 +1087,10 @@ Examples:
                         help="Risk multiplier for GoF work")
     parser.add_argument("--permafrost_thaw_rate", type=float, default=0.01,
                         help="Annual increase in natural hazard from climate")
+    parser.add_argument("--ag_intensity_base_prob", type=float, default=0.005,
+                        help="Baseline annual probability from factory farming spillover")
+    parser.add_argument("--ag_intensity_growth", type=float, default=0.04,
+                        help="Annual growth rate of industrial agriculture")
     parser.add_argument("--urbanization_rate", type=float, default=0.015,
                         help="Annual increase in urban population fraction")
     parser.add_argument("--density_natural_multiplier", type=float, default=0.3,
@@ -1110,14 +1164,14 @@ Examples:
 
         print(f"Projected {args.period_years}-year cumulative probability: {results['cumulative_prob_pct']:.2f}%\n")
         print("Year-by-year breakdown:")
-        print("-" * 100)
-        print(f"{'Year':>4} {'Natural':>9} {'Accident':>9} {'Malicious':>10} {'State':>9} {'Total':>9} {'Prob':>8}")
-        print("-" * 100)
+        print("-" * 115)
+        print(f"{'Year':>4} {'Natural':>9} {'Accident':>9} {'Malicious':>10} {'State':>9} {'AgriInt':>9} {'Total':>9} {'Prob':>8}")
+        print("-" * 115)
 
         for y in results['years']:
             print(f"{y['year']:>4} {y['natural_hazard']:>9.5f} {y['accidental_hazard']:>9.5f} "
                   f"{y['malicious_hazard']:>10.7f} {y['state_actor_hazard']:>9.5f} "
-                  f"{y['total_hazard']:>9.5f} {y['annual_prob_adjusted']*100:>7.2f}%")
+                  f"{y['agricultural_hazard']:>9.5f} {y['total_hazard']:>9.5f} {y['annual_prob_adjusted']*100:>7.2f}%")
 
         print(f"\nKey multipliers (Year {args.period_years}):")
         y_last = results['years'][-1]
