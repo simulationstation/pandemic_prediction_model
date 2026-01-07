@@ -2,52 +2,166 @@
 
 A comprehensive simulation framework for pandemic risk assessment, including both historical forecast exploration and forward-looking risk modeling.
 
+---
+
 ## Pandemic Risk Simulator (predictor/)
 
-**DISCLAIMER: This is a simulation model for research and educational purposes only. It is NOT a validated forecast and should NOT be used for policy decisions. Parameter defaults are illustrative and have not been empirically validated.**
+**DISCLAIMER: This is a simulation model for research and educational purposes only. It is NOT a validated forecast and should NOT be used for policy decisions. Parameter defaults are illustrative and have not been empirically validated. The model is intentionally calibrated for pessimistic/aggressive scenarios to support "prepare for the worst" risk planning.**
 
 ### Simulation Results (v2.0 - Aggressive Scenario)
 
-| Time Horizon | Cumulative Probability |
-|--------------|------------------------|
-| 5-year       | **~24%**               |
-| 10-year      | **~59%**               |
-| 15-year      | **~88%**               |
-| 20-year      | **~99%**               |
+| Time Horizon | Cumulative Probability | Annual Prob (Final Year) |
+|--------------|------------------------|--------------------------|
+| 5-year       | **~24%**               | 7.38%                    |
+| 10-year      | **~59%**               | 14.82%                   |
+| 15-year      | **~88%**               | 27.51%                   |
+| 20-year      | **~99%**               | 49.13%                   |
 
-*Note: These projections use aggressive assumptions reflecting rapid AI advancement, regulatory erosion, and accelerating risk factors. See "Aggressive Parameters" below.*
+### Model Architecture
 
-### Model Structure
+The simulator uses a **hazard-based competing risks framework**. Total annual risk is computed as:
 
-The simulator uses a hazard-based framework with multiple risk pathways:
+```
+P(pandemic in year) = 1 - exp(-total_hazard)
+total_hazard = natural_hazard + accidental_hazard + malicious_hazard + state_hazard
+```
 
-**Natural Pathways:**
-- Zoonotic spillover (baseline)
-- Climate-enhanced (permafrost thaw, habitat destruction)
+This is standard survival analysis methodology that properly handles multiple independent risk sources.
 
-**Accidental Pathways:**
-- General lab accidents
-- Gain-of-function accidents (3x risk multiplier)
-- Cloud lab incidents (less oversight)
+#### Risk Pathways
 
-**Malicious Pathways:**
-- Individual actors (capability + incentive driven)
-- State-sponsored programs
+| Pathway | Components | Scales With |
+|---------|------------|-------------|
+| **Natural** | Zoonotic spillover, climate-enhanced emergence | Permafrost thaw rate |
+| **Accidental** | General lab accidents, GoF accidents, cloud lab incidents | Labs × Capability ÷ Mitigation |
+| **Malicious (Individual)** | Lone actors, small groups | Capability × Incentives × Synthesis access |
+| **Malicious (State)** | Nation-state bioweapons programs | State actor growth rate |
 
-### Key Risk Factors Modeled
+#### Capability Expansion Model
 
-| Factor | Description |
-|--------|-------------|
-| DNA synthesis democratization | Costs dropping ~30%/year, bypasses lab access |
-| Cloud/remote labs | New access vector with less oversight |
-| AI as direct agent | AI designing pathogens without human expertise |
-| State-sponsored programs | Separate pathway with different resources |
-| Gain-of-function research | Higher-risk subset of lab work |
-| Permafrost/climate effects | Growing natural baseline |
-| Regulatory drift | Can model both improvement and erosion |
-| Antibiotic resistance | Increases pandemic severity |
-| Knowledge diffusion | Published research lowers capability barriers |
-| Risk correlation | Near-miss effects on subsequent years |
+The model uses an IQ-threshold mechanism to estimate the "capable pool" of individuals who could potentially cause a pandemic:
+
+```
+capable_pool = base_capable × pop_growth × ai_expansion × knowledge_diffusion + ai_direct
+```
+
+Where:
+- **Base capable**: ~30,000 individuals with requisite expertise (IQ ≥ 130 threshold)
+- **AI expansion**: AI tools enable mid-range individuals (IQ 110-130) to achieve equivalent capability
+- **Knowledge diffusion**: Published research lowers barriers over time
+- **AI direct**: AI systems that can design pathogens without human expertise
+
+---
+
+### Complete Parameter Reference
+
+#### Core Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `period_years` | 10 | Simulation time horizon (years) |
+| `base_annual_prob` | 0.025 (2.5%) | Baseline total annual hazard rate at t=0 |
+| `natural_prob_fraction` | 0.50 (50%) | Fraction of base hazard from natural sources |
+| `malicious_fraction` | 0.00001 | Fraction of engineered risk from malicious pathway |
+
+#### Population & Capability Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `pop` | 8.3×10⁹ | Starting global population |
+| `pop_growth` | 0.008 (0.8%/yr) | Annual compound population growth rate |
+| `iq_mean` | 100 | Population IQ distribution mean |
+| `iq_sd` | 15 | Population IQ standard deviation |
+| `iq_high` | 130 | IQ threshold for baseline capability (no AI) |
+| `iq_mid` | 110 | IQ threshold for AI-assisted capability |
+| `base_capable` | 30,000 | Baseline number of capable individuals at t=0 |
+
+#### Lab Infrastructure Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `lab_start` | 3,515 | Starting number of BSL-3+ labs globally |
+| `lab_growth` | 0.10 (10%/yr) | Annual compound lab growth rate |
+| `cloud_lab_start` | 0.05 (5%) | Starting cloud lab accessibility (fraction of traditional) |
+| `cloud_lab_growth` | 0.20 (20%/yr) | Annual cloud lab accessibility growth |
+
+#### AI Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `ai_adoption_start` | 0.50 (50%) | Starting AI adoption rate in life sciences |
+| `ai_growth` | 0.15 (15%/yr) | Annual compound AI adoption growth (caps at 100%) |
+| `ai_direct_start_year` | 3 | Year when AI direct pathogen design capability emerges |
+| `ai_direct_growth_rate` | 0.5 | Sigmoid steepness for AI capability phase transition |
+| `ai_direct_max_multiplier` | 0.30 (30%) | Maximum capability addition from AI direct agent |
+
+#### DNA Synthesis Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `dna_synthesis_cost_reduction` | 0.30 (30%/yr) | Annual synthesis cost reduction rate |
+| `dna_synthesis_capability_factor` | 0.50 (50%) | Max capability boost from synthesis access |
+
+#### Gain-of-Function Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `gof_fraction` | 0.15 (15%) | Fraction of lab work that is gain-of-function |
+| `gof_risk_multiplier` | 5.0 | Risk multiplier for GoF vs general lab work |
+
+#### State Actor Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `state_actor_base_prob` | 0.003 (0.3%/yr) | Baseline annual probability from state programs |
+| `state_actor_growth` | 0.03 (3%/yr) | Annual linear growth in state program risk |
+
+#### Defense & Mitigation Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `mitigation_growth` | 0.02 (2%/yr) | Annual linear growth in biosecurity effectiveness |
+| `regulatory_drift` | -0.01 (-1%/yr) | Annual change in regulatory effectiveness (negative = erosion) |
+
+#### Climate & Environmental Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `permafrost_thaw_rate` | 0.01 (1%/yr) | Annual increase in natural hazard from climate effects |
+
+#### Antibiotic Resistance Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `antibiotic_resistance_growth` | 0.03 (3%/yr) | Annual compound growth in resistance |
+| `antibiotic_severity_multiplier` | 0.10 (10%) | Severity increase per unit resistance growth |
+
+#### Knowledge & Incentive Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `knowledge_diffusion_rate` | 0.05 (5%/yr) | Annual growth in dangerous knowledge accessibility |
+| `malicious_growth` | 0.03 (3%/yr) | Annual linear growth in malicious incentives |
+
+#### Risk Correlation Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `yearly_risk_correlation` | 0.0 | Correlation factor between consecutive years |
+| `near_miss_security_boost` | 0.10 (10%) | Risk reduction multiplier after high-risk year |
+| `near_miss_vulnerability_reveal` | 0.05 (5%) | Risk increase from revealed vulnerabilities |
+
+---
+
+### Growth Model Summary
+
+| Growth Type | Parameters | Formula |
+|-------------|------------|---------|
+| **Compound** | pop, labs, AI adoption, synthesis costs, cloud labs, knowledge, antibiotic resistance | `value × (1 + rate)^t` |
+| **Linear** | mitigation, regulatory drift, malicious incentives, permafrost, state actors | `1 + rate × t` |
+| **Sigmoid** | AI direct capability | `1 / (1 + exp(-k(t - t₀)))` |
+
+---
 
 ### Usage
 
@@ -58,50 +172,144 @@ python predictor/predictor.py
 # Custom time horizon
 python predictor/predictor.py --period_years 20
 
-# Detailed hazard breakdown
+# Detailed hazard breakdown by year
 python predictor/predictor.py --detailed
 
-# Monte Carlo sensitivity analysis
+# Monte Carlo sensitivity analysis (1000 samples)
 python predictor/predictor.py --monte_carlo --mc_samples 1000
 
-# Model regulatory erosion scenario
-python predictor/predictor.py --regulatory_drift -0.02
+# Reproducible Monte Carlo with seed
+python predictor/predictor.py --monte_carlo --mc_samples 1000 --mc_seed 42
+
+# Model severe regulatory erosion scenario
+python predictor/predictor.py --regulatory_drift -0.03
+
+# Conservative scenario (slower AI, better mitigation)
+python predictor/predictor.py --ai_direct_start_year 8 --mitigation_growth 0.05 --regulatory_drift 0.0
+
+# Extreme scenario
+python predictor/predictor.py --state_actor_base_prob 0.005 --gof_risk_multiplier 10 --regulatory_drift -0.02
 ```
 
-### Aggressive Parameters (v2.0 defaults)
+---
 
-| Parameter | Value | Rationale |
-|-----------|-------|-----------|
-| `natural_prob_fraction` | 50% | Equal natural/engineered risk split |
-| `mitigation_growth` | 2%/yr | Slow biosecurity improvement |
-| `regulatory_drift` | -1%/yr | Slight regulatory erosion |
-| `ai_direct_start_year` | 3 years | AI capability emerges soon |
-| `state_actor_base_prob` | 0.3%/yr | Higher state program risk |
-| `gof_fraction` | 15% | More gain-of-function work |
-| `gof_risk_multiplier` | 5x | GoF significantly riskier |
+### Sample Output
 
-### Sample Output (10-year, detailed)
+#### Standard Output (10-year)
+```
+Projected probability of a major pandemic over the next 10 years: 59.18%
 
+Annual probabilities:
+  Year 1: 3.53%
+  Year 2: 4.15%
+  Year 3: 4.97%
+  Year 4: 6.02%
+  Year 5: 7.38%
+  Year 6: 9.10%
+  Year 7: 10.27%
+  Year 8: 11.59%
+  Year 9: 13.10%
+  Year 10: 14.82%
+```
+
+#### Detailed Output (--detailed flag)
 ```
 Year   Natural  Accident  Malicious     State     Total     Prob
    1   0.01250   0.02046  0.0030001   0.00300   0.03596    3.53%
+   2   0.01263   0.02666  0.0030902   0.00309   0.04238    4.15%
+   3   0.01275   0.03482  0.0031802   0.00318   0.05075    4.97%
+   4   0.01288   0.04553  0.0032703   0.00327   0.06167    6.02%
    5   0.01300   0.05959  0.0033604   0.00336   0.07595    7.38%
+   6   0.01313   0.07768  0.0034505   0.00345   0.09426    9.10%
+   7   0.01325   0.08986  0.0035406   0.00354   0.10665   10.27%
+   8   0.01338   0.10391  0.0036307   0.00363   0.12092   11.59%
+   9   0.01350   0.12017  0.0037208   0.00372   0.13739   13.10%
   10   0.01363   0.13898  0.0038109   0.00381   0.15642   14.82%
 
 Key multipliers (Year 10):
   Lab multiplier:        2.36x
+  Cloud lab factor:      0.26x
   Synthesis factor:      1.48x
   Capability multiplier: 3.11x
-  Mitigation factor:     1.09x  (eroded from 1.45x due to regulatory drift)
+  AI direct factor:      0.29
+  Mitigation factor:     1.09x
+  Knowledge factor:      1.55x
 ```
 
-### Limitations
+#### Monte Carlo Output (--monte_carlo flag)
+```
+Running Monte Carlo sensitivity analysis (1000 samples)...
 
-- Parameter defaults are illustrative, not empirically validated
-- Assumes pathway independence (partially addressed by correlation factor)
-- Does not model pandemic severity separately
-- State actor modeling is simplified
-- Climate effects are rough approximations
+Cumulative 10-year probability:
+  Mean:   59.42%
+  Std:    7.83%
+  5th:    46.21%
+  25th:   53.89%
+  Median: 59.71%
+  75th:   65.12%
+  95th:   72.34%
+```
+
+---
+
+### Why These Parameters? (Rationale)
+
+#### Aggressive Assumptions (Pessimistic)
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| `natural_prob_fraction` | 50% | Engineered risk growing faster than natural |
+| `mitigation_growth` | 2%/yr | Biosecurity improvements are slow and underfunded |
+| `regulatory_drift` | -1%/yr | Political/economic pressures erode oversight |
+| `ai_direct_start_year` | 3 years | AI capabilities advancing faster than expected |
+| `state_actor_base_prob` | 0.3%/yr | Multiple states with suspected programs |
+| `gof_fraction` | 15% | GoF research expanding despite controversy |
+| `gof_risk_multiplier` | 5x | Intentionally enhanced pathogens are much riskier |
+
+#### Conservative Alternative Values
+
+For less pessimistic projections, consider:
+
+```bash
+python predictor/predictor.py \
+  --natural_prob_fraction 0.70 \
+  --mitigation_growth 0.05 \
+  --regulatory_drift 0.0 \
+  --ai_direct_start_year 8 \
+  --state_actor_base_prob 0.001 \
+  --gof_risk_multiplier 3.0
+```
+
+This produces ~30-35% 10-year probability instead of ~59%.
+
+---
+
+### Limitations & Caveats
+
+1. **Not a validated forecast** - Parameter defaults are judgmental estimates, not empirically calibrated
+2. **Pathway independence** - Assumes natural/accidental/malicious risks are independent (partially addressed by correlation parameters)
+3. **No severity modeling** - Counts any major pandemic equally; doesn't distinguish CFR
+4. **Simplified state actor model** - Treats state programs as single hazard rate
+5. **IQ-capability proxy** - Uses IQ distribution as simplified proxy for complex skill requirements
+6. **Climate uncertainty** - Permafrost/habitat effects are rough approximations
+7. **No feedback loops** - Doesn't model how a pandemic would affect subsequent risk (policy changes, infrastructure damage)
+
+---
+
+### Testing
+
+Run the test suite:
+
+```bash
+pytest tests/test_predictor.py -v --noconftest
+```
+
+Tests cover:
+- Monotonicity (increasing labs → increasing risk)
+- Parameter sensitivity (all parameters affect output)
+- Boundary conditions (extreme values)
+- Mathematical correctness (hazard-to-probability conversion)
+- Regression tests (malicious_fraction bug fix)
 
 ---
 
