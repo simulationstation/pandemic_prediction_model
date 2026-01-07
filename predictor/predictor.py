@@ -519,10 +519,10 @@ def calculate_pandemic_probability(
     # === ORIGINAL PARAMETERS (preserved exactly) ===
     period_years: int = 10,
     base_annual_prob: float = 0.025,
-    natural_prob_fraction: float = 0.6,
+    natural_prob_fraction: float = 0.5,  # 50% natural, 50% engineered (aggressive)
     malicious_fraction: float = 0.00001,
     malicious_growth: float = 0.03,
-    mitigation_growth: float = 0.05,
+    mitigation_growth: float = 0.02,  # Reduced - biosecurity improvement is slow
     pop: float = 8.3e9,
     pop_growth: float = 0.008,
     iq_mean: float = 100,
@@ -542,19 +542,19 @@ def calculate_pandemic_probability(
     cloud_lab_start: float = 0.05,  # 5% of traditional lab access
     cloud_lab_growth: float = 0.20,  # 20% annual growth
     # AI Direct Agent
-    ai_direct_start_year: int = 5,  # Years until AI direct capability emerges
+    ai_direct_start_year: int = 3,  # Years until AI direct capability emerges (aggressive)
     ai_direct_growth_rate: float = 0.5,  # Sigmoid steepness
     ai_direct_max_multiplier: float = 0.3,  # Max 30% capability addition
     # State Actors
-    state_actor_base_prob: float = 0.001,  # 0.1% annual baseline
-    state_actor_growth: float = 0.02,  # 2% annual growth
+    state_actor_base_prob: float = 0.003,  # 0.3% annual baseline (aggressive)
+    state_actor_growth: float = 0.03,  # 3% annual growth (aggressive)
     # Gain-of-Function
-    gof_fraction: float = 0.1,  # 10% of lab work is GoF
-    gof_risk_multiplier: float = 3.0,  # GoF is 3x riskier
+    gof_fraction: float = 0.15,  # 15% of lab work is GoF (aggressive)
+    gof_risk_multiplier: float = 5.0,  # GoF is 5x riskier (aggressive)
     # Climate/Permafrost
     permafrost_thaw_rate: float = 0.01,  # 1% annual increase in natural baseline
     # Regulatory
-    regulatory_drift: float = 0.0,  # Net change in regulatory effectiveness (can be negative)
+    regulatory_drift: float = -0.01,  # Slight regulatory erosion over time (aggressive)
     # Antibiotic Resistance
     antibiotic_resistance_growth: float = 0.03,  # 3% annual growth
     antibiotic_severity_multiplier: float = 0.1,  # 10% severity increase per unit resistance
@@ -911,10 +911,10 @@ Examples:
     # Original parameters
     parser.add_argument("--period_years", type=int, default=10)
     parser.add_argument("--base_annual_prob", type=float, default=0.025)
-    parser.add_argument("--natural_prob_fraction", type=float, default=0.6)
+    parser.add_argument("--natural_prob_fraction", type=float, default=0.5)
     parser.add_argument("--malicious_fraction", type=float, default=0.00001)
     parser.add_argument("--malicious_growth", type=float, default=0.03)
-    parser.add_argument("--mitigation_growth", type=float, default=0.05)
+    parser.add_argument("--mitigation_growth", type=float, default=0.02)
     parser.add_argument("--pop", type=float, default=8.3e9)
     parser.add_argument("--pop_growth", type=float, default=0.008)
     parser.add_argument("--iq_mean", type=float, default=100)
@@ -936,23 +936,23 @@ Examples:
                         help="Starting cloud lab accessibility")
     parser.add_argument("--cloud_lab_growth", type=float, default=0.20,
                         help="Annual cloud lab growth rate")
-    parser.add_argument("--ai_direct_start_year", type=int, default=5,
+    parser.add_argument("--ai_direct_start_year", type=int, default=3,
                         help="Year when AI direct capability emerges")
     parser.add_argument("--ai_direct_growth_rate", type=float, default=0.5,
                         help="AI direct capability growth rate")
     parser.add_argument("--ai_direct_max_multiplier", type=float, default=0.3,
                         help="Maximum AI direct capability multiplier")
-    parser.add_argument("--state_actor_base_prob", type=float, default=0.001,
+    parser.add_argument("--state_actor_base_prob", type=float, default=0.003,
                         help="Baseline state actor annual probability")
-    parser.add_argument("--state_actor_growth", type=float, default=0.02,
+    parser.add_argument("--state_actor_growth", type=float, default=0.03,
                         help="Annual state actor risk growth")
-    parser.add_argument("--gof_fraction", type=float, default=0.1,
+    parser.add_argument("--gof_fraction", type=float, default=0.15,
                         help="Fraction of lab work that is gain-of-function")
-    parser.add_argument("--gof_risk_multiplier", type=float, default=3.0,
+    parser.add_argument("--gof_risk_multiplier", type=float, default=5.0,
                         help="Risk multiplier for GoF work")
     parser.add_argument("--permafrost_thaw_rate", type=float, default=0.01,
                         help="Annual increase in natural hazard from climate")
-    parser.add_argument("--regulatory_drift", type=float, default=0.0,
+    parser.add_argument("--regulatory_drift", type=float, default=-0.01,
                         help="Annual change in regulatory effectiveness (negative = erosion)")
     parser.add_argument("--antibiotic_resistance_growth", type=float, default=0.03,
                         help="Annual antibiotic resistance growth")

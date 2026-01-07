@@ -6,14 +6,16 @@ A comprehensive simulation framework for pandemic risk assessment, including bot
 
 **DISCLAIMER: This is a simulation model for research and educational purposes only. It is NOT a validated forecast and should NOT be used for policy decisions. Parameter defaults are illustrative and have not been empirically validated.**
 
-### Simulation Results (v2.0)
+### Simulation Results (v2.0 - Aggressive Scenario)
 
 | Time Horizon | Cumulative Probability |
 |--------------|------------------------|
-| 5-year       | ~22%                   |
-| 10-year      | ~41%                   |
-| 15-year      | ~68%                   |
-| 20-year      | ~89%                   |
+| 5-year       | **~24%**               |
+| 10-year      | **~59%**               |
+| 15-year      | **~88%**               |
+| 20-year      | **~99%**               |
+
+*Note: These projections use aggressive assumptions reflecting rapid AI advancement, regulatory erosion, and accelerating risk factors. See "Aggressive Parameters" below.*
 
 ### Model Structure
 
@@ -66,19 +68,31 @@ python predictor/predictor.py --monte_carlo --mc_samples 1000
 python predictor/predictor.py --regulatory_drift -0.02
 ```
 
+### Aggressive Parameters (v2.0 defaults)
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| `natural_prob_fraction` | 50% | Equal natural/engineered risk split |
+| `mitigation_growth` | 2%/yr | Slow biosecurity improvement |
+| `regulatory_drift` | -1%/yr | Slight regulatory erosion |
+| `ai_direct_start_year` | 3 years | AI capability emerges soon |
+| `state_actor_base_prob` | 0.3%/yr | Higher state program risk |
+| `gof_fraction` | 15% | More gain-of-function work |
+| `gof_risk_multiplier` | 5x | GoF significantly riskier |
+
 ### Sample Output (10-year, detailed)
 
 ```
 Year   Natural  Accident  Malicious     State     Total     Prob
-   1   0.01500   0.01222  0.0010001   0.00100   0.02822    2.78%
-   5   0.01560   0.03112  0.0010803   0.00108   0.04780    4.72%
-  10   0.01635   0.06419  0.0011808   0.00118   0.08172    8.06%
+   1   0.01250   0.02046  0.0030001   0.00300   0.03596    3.53%
+   5   0.01300   0.05959  0.0033604   0.00336   0.07595    7.38%
+  10   0.01363   0.13898  0.0038109   0.00381   0.15642   14.82%
 
 Key multipliers (Year 10):
   Lab multiplier:        2.36x
   Synthesis factor:      1.48x
   Capability multiplier: 3.11x
-  Mitigation factor:     1.45x
+  Mitigation factor:     1.09x  (eroded from 1.45x due to regulatory drift)
 ```
 
 ### Limitations
